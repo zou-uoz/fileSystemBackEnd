@@ -72,6 +72,20 @@ const remove = async ctx => {
     };
 };
 
+
+const handler = async (ctx, next) => {
+  try {
+    await next();
+  } catch (err) {
+    ctx.response.status = err.statusCode || err.status || 500;
+    ctx.response.body = {
+      message: err.message
+    };
+  }
+};
+
+
+app.use(handler);
 app.use(koaBody());
 app.use(main);
 app.use(route.post('/api/dirents', dirents));
