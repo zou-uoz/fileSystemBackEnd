@@ -1,7 +1,11 @@
-const { readdir } = require('node:fs/promises');
-const { rename } = require('node:fs/promises');
-const { rm } = require('node:fs/promises');
-const { cp } = require('node:fs/promises');
+const { 
+    readdir,
+    rename,
+    rm,
+    cp,
+    mkdir,
+} = require('node:fs/promises');
+
 const Koa = require('koa');
 const route = require('koa-route');
 const path = require('path');
@@ -27,6 +31,16 @@ const dirents = async ctx => {
         msg: '获取成功',
     }
     ctx.response.body = response;
+};
+
+const renameFileOrDir = async ctx => {
+    const { oldName, newName } = ctx.request.body;
+    ctx.response.type = 'json';
+    await rename(staticPath + oldName, staticPath + newName);
+    ctx.response.body = {
+        code: 0,
+        msg: '重命名成功',
+    };
 };
 
 const cut = async ctx => {
@@ -59,6 +73,25 @@ const copy = async ctx => {
     };
 };
 
+const newFolder = async ctx => {
+    const { targetFolder } = ctx.request.body;
+    ctx.response.type = 'json';
+    const dirents = await readdir(staticPath + targetFolder, { withFileTypes: true });
+    const dirs = dirents.filter(d => d.isDirectory()).map(({name}) => name);
+    let newDirName = '新建文件夹';
+    let count = 1;
+    while(dirs.includes(newDirName)) {
+        newDirName = `新建文件夹（${count}）`;
+        count++;
+    }
+    const newFolder = await mkdir(staticPath + targetFolder + '/' + newDirName,  { recursive: true })
+    ctx.response.body = {
+        code: 0,
+        msg: '新建成功',
+        newFolder,
+    };
+};
+
 const remove = async ctx => {
     const { selected } = ctx.request.body;
     ctx.response.type = 'json';
@@ -79,7 +112,7 @@ const handler = async (ctx, next) => {
   } catch (err) {
     ctx.response.status = err.statusCode || err.status || 500;
     ctx.response.body = {
-      message: err.message
+      msg: err.message
     };
   }
 };
@@ -92,4 +125,6 @@ app.use(route.post('/api/dirents', dirents));
 app.use(route.post('/api/cut', cut));
 app.use(route.post('/api/copy', copy));
 app.use(route.post('/api/remove', remove));
+app.use(route.post('/api/newFolder', newFolder));
+app.use(route.post('/api/rename', renameFileOrDir));
 app.listen(5000);
